@@ -1,4 +1,4 @@
-# Huawei-TUDers
+# Huawei_TUDers
 
 Repository for the TechArena Click-Through Rate (CTR) challenge.
 

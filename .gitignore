@@ -22,3 +22,8 @@ ENV/
 .vscode/
 .idea/
 .ipynb_checkpoints/
+
+# data and outputs stay local
+Data/
+outputs/
+*.duckdb

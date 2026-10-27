@@ -30,7 +30,8 @@ python setup/make_full.py               # full database, several minutes
 2. Prefix every column: Ife `u_`, Marcela `i_`, Abraham `cv_`, Elvita `emb_` (Eoin `base_`)
 3. Learn only from `fit` (data before the cutoff)
 4. Test: `python features/<yourname>.py`
-5. Score: `python train.py full --ablation`
+5. Score: `python train.py full --groups base,<yours> --rounds 40 --seeds 3 --ablation`
+6. Paste that output into your pull request description (don't commit experiments.csv)
 
 ## Commands
 ```
@@ -38,4 +39,5 @@ python train.py                 quick check on the 5% sample
 python train.py full            real score
 python train.py full --ablation does each clue file help?
 python train.py full --submit   also writes a submission to outputs/
+python train.py full --rounds 40 --seeds 3   fair comparison: fixed length, averaged over 3 seeds
 ```

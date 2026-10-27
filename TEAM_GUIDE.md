@@ -8,6 +8,7 @@ common.py        shared settings: paths, dates, which rows we predict
 features/        one clue file per person (copy _template.py to start)
 train.py         combines all clue files, trains, scores, makes submissions (Eoin)
 tuning.py        finds the best model settings (Eoin)
+compare_setups.py  compares training setups: days to learn from, num_leaves, learning rate (Eoin)
 experiments.csv  log of every train.py run
 outputs/         submission files (never on GitHub)
 notebooks/<name> personal scratch space
@@ -40,4 +41,6 @@ python train.py full            real score
 python train.py full --ablation does each clue file help?
 python train.py full --submit   also writes a submission to outputs/
 python train.py full --rounds 40 --seeds 3   fair comparison: fixed length, averaged over 3 seeds
+python train.py full --train-days 4 --leaves 15 --lr 0.02   learn from more days, simpler trees, slower learning
+python compare_setups.py full     tries 12 training setups and prints which is best
 ```

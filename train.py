@@ -8,6 +8,7 @@ Eoin's training script: collects everyone's feature files, trains the model, pri
   python train.py full --seeds 3         repeat with 3 random seeds and average (shows the wobble)
   python train.py full --train-days 4    learn from 4 days before each test day instead of 1
   python train.py full --leaves 31 --lr 0.02     simpler trees / slower learning
+  python train.py full --params best_params.json  use the settings tuning.py found
   python train.py full --ablation        does each feature file help? (score with vs without it)
   python train.py full --submit          also make a submission file in outputs/
   python train.py full --note "..."      a note saved in the log
@@ -28,6 +29,7 @@ import argparse
 import datetime as dt
 import getpass
 import importlib
+import json
 import time
 
 import lightgbm as lgb
@@ -66,8 +68,8 @@ def days_label(days):
     return f"{day_name(days[0])}-{last.day}"
 
 
-def make_params(leaves=None, lr=None):
-    p = dict(PARAMS)
+def make_params(leaves=None, lr=None, base=None):
+    p = dict(base or PARAMS)
     if leaves:
         p["num_leaves"] = leaves
     if lr:
@@ -162,26 +164,35 @@ def main(argv=None):
     ap.add_argument("--groups", help="comma-separated feature files, e.g. base,marcela (default: all)")
     ap.add_argument("--rounds", type=int, help="train a fixed number of rounds (no early stopping)")
     ap.add_argument("--seeds", type=int, default=1, help="repeat with this many random seeds and average")
-    ap.add_argument("--train-days", type=int, default=1, help="days to learn from before each test day (1-5)")
+    ap.add_argument("--train-days", type=int, help="days to learn from before each test day (1-5, default 1)")
+    ap.add_argument("--params", help="settings file made by tuning.py, e.g. best_params.json")
     ap.add_argument("--leaves", type=int, help=f"num_leaves (default {PARAMS['num_leaves']})")
     ap.add_argument("--lr", type=float, help=f"learning rate (default {PARAMS['learning_rate']})")
     ap.add_argument("--ablation", action="store_true")
     ap.add_argument("--submit", action="store_true")
     ap.add_argument("--note", default="")
     a = ap.parse_args(argv)
+    tuned = {}
+    if a.params:                              # settings found by tuning.py (options typed here still win)
+        with open(a.params) as fh:
+            tuned = json.load(fh)
+        a.rounds = a.rounds or tuned.get("rounds")
+        a.train_days = a.train_days or tuned.get("train_days")
+    a.train_days = a.train_days or 1
     if a.rounds is not None and a.rounds < 1:
         ap.error("--rounds must be 1 or more")
     if a.seeds < 1:
         ap.error("--seeds must be 1 or more")
     if a.train_days < 1:
         ap.error("--train-days must be 1 or more")
-    params = make_params(a.leaves, a.lr)
+    params = make_params(a.leaves, a.lr, base={**PARAMS, **tuned.get("params", {})})
 
     groups = a.groups.split(",") if a.groups else all_groups()
     con = connect(full=(a.data == "full"))
     how = f"{a.rounds} rounds" if a.rounds else "early stopping"
     print(f"Data: {a.data}   Feature files: {', '.join(groups)}   Training: {how}, {a.seeds} seed(s), "
-          f"num_leaves {params['num_leaves']}, learning rate {params['learning_rate']}")
+          f"num_leaves {params['num_leaves']}, learning rate {params['learning_rate']}"
+          + (f", tuned settings from {a.params}" if a.params else ""))
 
     t0, store = time.time(), Tables(con, groups)
     tables = store.tests(a.train_days)
@@ -208,6 +219,7 @@ def main(argv=None):
     log(dict(time=dt.datetime.now().strftime("%Y-%m-%d %H:%M"), who=getpass.getuser(), data=a.data,
              groups="+".join(groups), clues=len(cols), rounds=a.rounds or "early-stop", seeds=a.seeds,
              train_days=a.train_days, leaves=params["num_leaves"], lr=params["learning_rate"],
+             params_file=a.params or "",
              test1_auc=round(auc[0].mean(), 5), test2_auc=round(auc[1].mean(), 5),
              avg_auc=round(auc.mean(), 5),
              wobble=round(float(wobble.mean()), 5) if wobble is not None else "", note=a.note))
@@ -259,7 +271,7 @@ def main(argv=None):
         assert sub.rowid.is_unique and sub.predicted_probability.between(0, 1).all()
         OUT_DIR.mkdir(exist_ok=True)
         out = OUT_DIR / (f"sub_{dt.date.today()}_{'+'.join(groups)}_{a.data}_d{a.train_days}"
-                         f"_l{params['num_leaves']}_lr{params['learning_rate']}"
+                         f"_l{params['num_leaves']}_lr{params['learning_rate']}{'_tuned' if a.params else ''}"
                          f"_r{n_rounds}_s{a.seeds}_{auc.mean():.4f}.csv")
         sub.to_csv(out, index=False)
         print(f"Wrote outputs/{out.name}  ({len(sub):,} rows, checks passed)")

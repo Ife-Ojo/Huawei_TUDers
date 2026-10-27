@@ -43,4 +43,6 @@ python train.py full --submit   also writes a submission to outputs/
 python train.py full --rounds 40 --seeds 3   fair comparison: fixed length, averaged over 3 seeds
 python train.py full --train-days 4 --leaves 15 --lr 0.02   learn from more days, simpler trees, slower learning
 python compare_setups.py full     tries 12 training setups and prints which is best
+python tuning.py full             tries ~30 model settings, fair-checks the best, saves best_params.json
+python train.py full --params best_params.json --seeds 3   use the tuned settings
 ```
